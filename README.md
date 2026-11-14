@@ -1,6 +1,6 @@
 # Dementia cluster margin
 
-Analysis code accompanying **Distance to the boundary of dementia-like clusters recovers clinical order in population surveys of aging**.
+Analysis code accompanying **A graded score recovers dementia signal hidden by binary labels in aging surveys**.
 
 The analysis retains a two-cluster classification of cognitive and functional measures and adds a continuous score within each label. For factor coordinates `z`, the margin is
 
