@@ -1,4 +1,4 @@
-"""Variable identifiers and roles used in Supplementary Table S2."""
+"""Variable identifiers and roles used in Supplementary Table 2."""
 
 from .geometry import FUNCTION_PROFILE_ITEMS
 

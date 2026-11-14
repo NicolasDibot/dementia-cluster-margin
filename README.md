@@ -30,7 +30,7 @@ The package includes cohort predictor preparation, five-dimensional multiple fac
 | Figure 5 from paired aggregate model estimates | `scripts/plot_risk_factors.py` |
 | Method diagram and clinical validation display (Figures 1 and 3) | `scripts/plot_method_and_validation.py` |
 | Cluster profiles, stability and prospective validation (Figures 2 and 4) | `scripts/plot_profiles_and_prospective.py` |
-| Tables 1–2, Supplementary Tables S1–S2 and figure input tables | `dementia_margin/manuscript_tables.py`, `variables.py` |
+| Tables 1–2, Supplementary Tables 1–2 and figure input tables | `dementia_margin/manuscript_tables.py`, `variables.py` |
 | Provider-file-to-figure execution | `dementia_margin/pipeline.py` |
 
 The pipeline links provider files, prepares predictors, fits the factor spaces and clusters, performs clinical and longitudinal analyses, and generates the manuscript tables and editable figures. Provider datasets must be obtained separately under the applicable access agreements.
@@ -210,7 +210,7 @@ python -m dementia_margin.share_hcap \
 
 This command links Wave 7 scores for participants aged at least 60 years in Denmark, France, Germany and Italy to SHARE-HCAP. Outcomes are probable dementia, the 14-item informant assistance fraction (at least ten valid items), and the reversed mean of three standardized delayed-recall scores (at least two valid tests). The memory standardization reference is the linked assessment sample before the two-test restriction.
 
-All comparisons use within-country pairs and paired household bootstrap draws within country. Supplementary Table S1 compares unweighted estimates, released calibrated propensity weights, and entropy-balancing weights. The finite target is the Wave 7 domain alive and main-interviewed at Wave 9, with Wave 9 calibration weights. Entropy balancing starts from HCAP design weights, uses only baseline covariates, and is refitted within every bootstrap draw. Target moments and their standardization are held fixed. The fixed ridge is 0.001; achieved balance and effective sample size are exported. Small changes in bootstrap interval bounds, particularly close to zero, should not be interpreted as a change in the underlying effect.
+All comparisons use within-country pairs and paired household bootstrap draws within country. Supplementary Table 1 compares unweighted estimates, released calibrated propensity weights, and entropy-balancing weights. The finite target is the Wave 7 domain alive and main-interviewed at Wave 9, with Wave 9 calibration weights. Entropy balancing starts from HCAP design weights, uses only baseline covariates, and is refitted within every bootstrap draw. Target moments and their standardization are held fixed. The fixed ridge is 0.001; achieved balance and effective sample size are exported. Small changes in bootstrap interval bounds, particularly close to zero, should not be interpreted as a change in the underlying effect.
 
 ### Risk factors on a common population
 

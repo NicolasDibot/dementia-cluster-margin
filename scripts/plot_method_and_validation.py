@@ -173,7 +173,7 @@ def schematic_figure():
     fig.text(50,210,'The label cuts a continuum',16,bold=True)
     fig.text(50,229,'The boundary lies halfway between the two centroids (+)',12.5,color='#555555')
     fig.text(610,210,'The margin: M = d(N) − d(D)',16,bold=True)
-    fig.text(610,229,'Grey curves join points of equal margin; dashed line: M = 0',12.5,color='#555555')
+    fig.text(610,229,'Gray curves join points of equal margin; dashed line: M = 0',12.5,color='#555555')
     # Both panels use the same simulated cloud and the same centroids.
     rng=random.Random(7417)
     points=[]
