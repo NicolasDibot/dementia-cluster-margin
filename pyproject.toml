@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dementia-margin"
+version = "0.1.0"
+description = "Two-cluster dementia-like labels and continuous centroid-distance margins"
+requires-python = ">=3.11"
+dynamic = ["dependencies"]
+license = {text = "MIT"}
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+include = ["dementia_margin*"]
+
+[tool.setuptools.package-data]
+dementia_margin = ["*.R"]
+
+[tool.setuptools.data-files]
+"share/dementia-margin/scripts" = ["scripts/*.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
