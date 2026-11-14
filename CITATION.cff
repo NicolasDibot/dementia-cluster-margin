@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "Please cite this software when using its implementation."
 type: software
 title: "Dementia cluster margin analysis code"
-version: 0.1.0
+version: 0.1.1
 date-released: 2026-11-14
 authors:
   - family-names: Dibot
