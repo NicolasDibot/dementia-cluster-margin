@@ -25,12 +25,13 @@ The package includes cohort predictor preparation, five-dimensional multiple fac
 | Participant-level clustering stability with fixed coordinates and clinically assessed targets | `dementia_margin/stability.py`, `stability_analysis.py` |
 | ADAMS and HCAP reference classifications, weighted AUC and exact decomposition | `dementia_margin/statistics.py`, `clinical.py` |
 | Recall-only and function-only score comparisons | `dementia_margin/geometry.py`, `clinical.py` |
+| HCAP discrimination by interval between the HRS interview and the 2016 assessment | `dementia_margin/prepare_hrs.R`, `fit_hrs_mfa.R`, `pipeline.py`, `manuscript_tables.py` |
 | SHARE-HCAP linkage, outcomes, within-country discrimination and weighting analyses | `dementia_margin/share_hcap.py`, `share_weighting.py`, `rank_metrics.py` |
 | Risk-factor comparisons on the same participant-periods | `dementia_margin/risk_panel.py`, `risk_factors.py`, `risk_analysis.py` |
 | Figure 5 from paired aggregate model estimates | `scripts/plot_risk_factors.py` |
 | Method diagram and clinical validation display (Figures 1 and 3) | `scripts/plot_method_and_validation.py` |
 | Cluster profiles, stability and prospective validation (Figures 2 and 4) | `scripts/plot_profiles_and_prospective.py` |
-| Tables 1–2, Supplementary Tables 1–2 and figure input tables | `dementia_margin/manuscript_tables.py`, `variables.py` |
+| Tables 1–2, Extended Data Table 1, Supplementary Tables 1–2 and figure input tables | `dementia_margin/manuscript_tables.py`, `variables.py` |
 | Provider-file-to-figure execution | `dementia_margin/pipeline.py` |
 
 The pipeline links provider files, prepares predictors, fits the factor spaces and clusters, performs clinical and longitudinal analyses, and generates the manuscript tables and editable figures. Provider datasets must be obtained separately under the applicable access agreements.
@@ -110,7 +111,7 @@ Save a JSON configuration outside the repository, replacing the example paths wi
 python -m dementia_margin.pipeline --config /controlled/analysis.json
 ```
 
-Add `--plan` to inspect the ordered steps without opening cohort files. The full workflow writes controlled cohort intermediates under `adams/`, `hcap/` and `share/`, risk-model estimates under `risk_factors/`, manuscript tables under `tables/`, and editable SVG figures under `figures/`, with PNG renderings for Figures 2, 4 and 5. Execution logs and the resolved configuration remain in the same controlled output directory. Review disclosure requirements before releasing any generated aggregate files. Each stage is also available separately as described below.
+Add `--plan` to inspect the ordered steps without opening cohort files. The full workflow writes controlled cohort intermediates under `adams/`, `hcap/` (with the later HCAP interview waves under `hcap/interval/`) and `share/`, risk-model estimates under `risk_factors/`, manuscript tables under `tables/`, and editable SVG figures under `figures/`, with PNG renderings for Figures 2, 4 and 5. Execution logs and the resolved configuration remain in the same controlled output directory. Review disclosure requirements before releasing any generated aggregate files. Each stage is also available separately as described below.
 
 The configured seed and bootstrap count govern discrimination analyses and SHARE-HCAP weighting; the seed also governs the stability refits. HRS factor analysis and k-means consolidation retain seed 20260901. The survey-adjusted clinical association models retain 1,000 replicates and fixed seeds 20260932 (ADAMS) and 20260931 (HCAP). These separate settings preserve the calculation used for each analysis.
 
@@ -135,7 +136,7 @@ Rscript dementia_margin/prepare_share.R \
   /controlled/h_share_f.dta /controlled/share_prepared
 ```
 
-Each preparation command writes `prepared_predictors.rds` to a new output directory. HRS source participants must contribute the first two source waves, with the third retained when available: Waves 3–5 for the ADAMS period and Waves 8–10 for the HCAP period. The ADAMS target landmark is Wave 5 or 6 according to `WAVESEL`; the HCAP landmark is Wave 10. Target inclusion checks functional information, functional totals, cognitive information or a proxy interview, and at most 30% missing active predictors. Raw predictor values and the source/target roles are retained in the prepared frame. SHARE preparation applies the longitudinal inclusion and variable coding in its script to Harmonized SHARE release F. No diagnosis is used in either predictor preparation step.
+Each preparation command writes `prepared_predictors.rds` to a new output directory. HRS source participants must contribute the first two source waves, with the third retained when available: Waves 3–5 for the ADAMS period and Waves 8–10 for the HCAP period. The ADAMS target landmark is Wave 5 or 6 according to `WAVESEL`; the HCAP landmark is Wave 10. HCAP participants interviewed at Waves 11–13 (2012–2016) are also retained as targets, for the analysis by interval between the interview and the assessment. Target inclusion checks functional information, functional totals, cognitive information or a proxy interview, and at most 30% missing active predictors. Raw predictor values and the source/target roles are retained in the prepared frame. SHARE preparation applies the longitudinal inclusion and variable coding in its script to Harmonized SHARE release F. No diagnosis is used in either predictor preparation step.
 
 ### Factor analysis from prepared predictor frames
 
@@ -147,7 +148,7 @@ Rscript dementia_margin/fit_hrs_mfa.R /controlled/hcap_prepared/prepared_predict
 Rscript dementia_margin/fit_share_mfa.R /controlled/share_prepared/prepared_predictors.rds /controlled/share_mfa
 ```
 
-The output directory must be new and its parent directory must already exist. Both factor-analysis scripts export coordinates and completed predictors for the two-cluster step, together with the fitted objects and R session information, all under controlled storage. HRS frames produced by `prepare_hrs.R` also carry landmark metadata, enabling `fit_hrs_mfa.R` to export `target_geometry.csv` with completed landmark age, sex and education. Older prepared frames without that metadata require a separately prepared `target_geometry` file.
+The output directory must be new and its parent directory must already exist. Both factor-analysis scripts export coordinates and completed predictors for the two-cluster step, together with the fitted objects and R session information, all under controlled storage. HRS frames produced by `prepare_hrs.R` also carry landmark metadata, enabling `fit_hrs_mfa.R` to export `target_geometry.csv` with completed landmark age, sex and education. For HCAP it also exports `target_geometry_wave11.csv`, `target_geometry_wave12.csv` and `target_geometry_wave13.csv`, which list the participants interviewed at each later wave. Older prepared frames without that metadata require a separately prepared `target_geometry` file.
 
 For HRS, the `row_role` attribute identifies `source` and `target` rows. The `analysis_mode` attribute is `adams` or `hcap`. Source imputation uses regularized `imputeMFA` with five components. Missing supplementary values are completed with source-only medians or categorical modes, and supplementary individuals do not alter the active factor fit. The code checks source-fit invariance and preservation of complete target observations.
 
@@ -193,6 +194,8 @@ python -m dementia_margin.clinical --cohort hcap \
 The ADAMS reader uses Wave A Early Version 6.0 and the Cross-Wave Tracker Early Version 7.0 fixed-width layouts. The HCAP reader uses the 2016 respondent and summary releases and the 2022 HRS tracker. Readers check released file dimensions, coding and linkage consistency; a later release can fail those checks and should not be substituted silently.
 
 Discrimination is weighted by provider weights. ADAMS pairs are compared within sampling phase. AUC and ordinal-concordance intervals use 1,000 Rao–Wu resamples drawn from the full survey design before restricting to linked participants. The same replicate weights are used for each score and contrast. The adjusted model includes the label, within-label centred and scaled margin, age, sex, education and ADAMS phase. Its bootstrap standard errors use the survey design degrees of freedom. Bootstrap intervals may differ slightly across seeds and software versions.
+
+To evaluate HCAP at a later interview wave, run `dementia_margin.fit` with `target_geometry` set to `target_geometry_wave11.csv`, `target_geometry_wave12.csv` or `target_geometry_wave13.csv`, then pass the resulting `target_scores.csv` to `dementia_margin.clinical`. The factor space, the clusters and the centroids are those of the Wave 8–10 source fit; only the wave at which HCAP participants are scored changes. The complete workflow runs the three later waves and assembles them with Wave 10 in `tables/extended_data_table_1.csv`.
 
 ### SHARE-HCAP comparison and weighting
 

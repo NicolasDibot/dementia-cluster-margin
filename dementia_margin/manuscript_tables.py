@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from .io import external, fresh_output
+from .pipeline import HCAP_LATER_WAVES
 from .variables import variable_dictionary
 
 
@@ -67,6 +68,53 @@ def clinical_tables(directories):
     return pd.DataFrame(table1), pd.DataFrame(table2), pd.concat(numeric, ignore_index=True), pd.concat(associations, ignore_index=True)
 
 
+INTERVAL_ROWS = (
+    "Participants (dementia)",
+    "Dementia cases inside the dementia-like cluster, %",
+    "Normal cognition inside the dementia-like cluster, %",
+    "AUC, label",
+    "AUC, margin",
+    "Difference",
+    "Share of the difference from outside the cluster, %",
+    "AUC, recall-only score",
+    "AUC, function-only score",
+)
+
+
+def interval_table(directories):
+    """Extended Data Table 1: HCAP discrimination by HRS interview wave.
+
+    `directories` maps each HRS wave to the clinical output obtained with that
+    wave as the landmark. Wave w was fielded in year 1990 + 2w.
+    """
+    table = {"Measure": list(INTERVAL_ROWS)}
+    for wave, folder in directories.items():
+        folder = Path(folder)
+        estimates = pd.read_csv(folder / "clinical_estimands.csv").set_index("estimand")
+        distribution = pd.read_csv(folder / "diagnosis_distribution.csv").set_index("diagnostic_level")
+        metadata = json.loads((folder / "analysis_metadata.json").read_text())
+        participants = (int(metadata["participants"]) // 10) * 10
+        events = (int(metadata["dementia"]) // 10) * 10
+        gain = estimates.loc["contrast::margin_minus_label", "estimate"]
+        outside = estimates.loc["contribution::two_cluster::H0", "estimate"]
+        if gain <= 0:
+            raise ValueError("The share of the difference requires a positive difference")
+        year = 1990 + 2 * int(wave)
+        lag = 2016 - year
+        table[f"{year} ({'same year' if lag == 0 else f'{lag} years before'})"] = [
+            f"≈{participants:,} (≈{events:,})",
+            f"{distribution.loc[2, 'percentage_inside']:.1f}",
+            f"{distribution.loc[0, 'percentage_inside']:.1f}",
+            interval(estimates.loc["auc::label"]),
+            interval(estimates.loc["auc::margin"]),
+            interval(estimates.loc["contrast::margin_minus_label"]),
+            f"{100 * outside / gain:.1f}",
+            interval(estimates.loc["auc::cognition_only"]),
+            interval(estimates.loc["auc::function_only"]),
+        ]
+    return pd.DataFrame(table)
+
+
 def profile_table(geometry_directories):
     records = []
     for cohort, folder in geometry_directories.items():
@@ -102,6 +150,9 @@ def main():
              "clinical_estimands.csv", "clinical_model_coefficients.csv")
     for name, table in zip(names, tables, strict=True):
         table.to_csv(output / name, index=False)
+    intervals = {10: root / "hcap" / "clinical"}
+    intervals.update({wave: root / "hcap" / "interval" / f"wave{wave}" / "clinical" for wave in HCAP_LATER_WAVES})
+    interval_table(intervals).to_csv(output / "extended_data_table_1.csv", index=False)
     profile_table({cohort: root / cohort / "geometry" for cohort in ("adams", "hcap", "share")}).to_csv(output / "cluster_profiles.csv", index=False)
     stability_table({cohort: root / cohort / "stability" for cohort in ("adams", "hcap")}).to_csv(output / "stability_summary.csv", index=False)
     prospective = pd.read_csv(root / "share" / "hcap" / "prospective_estimands.csv")

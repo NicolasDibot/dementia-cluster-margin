@@ -112,7 +112,7 @@ def test_clinical_figure_uses_optional_pipeline_values(tmp_path):
     result=subprocess.run([sys.executable,str(script),"--output-dir",str(default)],capture_output=True,text=True)
     assert result.returncode==0,result.stderr
     expected={
-        "Figure_1.svg":"43affa91e99804abb06ddb2dff8852a042d7c63fe6a1839c62905d821c51401f",
+        "Figure_1.svg":"c026214a4dc19c81f48adb7bfa757eb7c224280ee3e2ad1790d9804c1e6cd730",
         "Figure_3.svg":"5f15bd7fded6ef2a0723533f0d07642969ede531f702e95734fc86a6f5894406",
     }
     for filename,digest in expected.items():

@@ -10,6 +10,10 @@ import sys
 
 from .io import external, fresh_output, require_data_access
 
+# HRS waves after the primary Wave 10 landmark at which HCAP participants are
+# also scored (2012, 2014 and 2016), for the analysis by interval.
+HCAP_LATER_WAVES = (11, 12, 13)
+
 
 def figure_script(name):
     source = Path(__file__).resolve().parents[1] / "scripts" / name
@@ -61,6 +65,17 @@ def build_plan(config):
             "--target-coordinates", folder / "mfa" / "target_coordinates.csv",
             "--target-scores", folder / "geometry" / "target_scores.csv", *references,
             "--repeats", repeats, "--seed", seed, "--rscript", rscript, "--output", folder / "stability"))
+        if cohort == "hcap":
+            for wave in HCAP_LATER_WAVES:
+                later = folder / "interval" / f"wave{wave}"
+                geometry_configs[f"hcap_wave{wave}"] = {
+                    **geometry_configs["hcap"], "output_dir": str(later / "geometry"),
+                    "target_geometry": str(folder / "mfa" / f"target_geometry_wave{wave}.csv"),
+                }
+                add(f"hcap_wave{wave}_geometry", *module("fit", "--config", root / "configuration" / f"hcap_wave{wave}.json"))
+                add(f"hcap_wave{wave}_clinical", *module("clinical", "--cohort", "hcap",
+                    "--scores", later / "geometry" / "target_scores.csv", *references,
+                    "--bootstrap", bootstrap, "--seed", seed, "--output", later / "clinical"))
     folder = root / "share"
     add("share_preparation", rscript, package / "prepare_share.R", share["harmonized"], folder / "prepared")
     add("share_mfa", rscript, package / "fit_share_mfa.R", folder / "prepared" / "prepared_predictors.rds", folder / "mfa")

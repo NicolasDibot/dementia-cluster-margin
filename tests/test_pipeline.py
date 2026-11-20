@@ -3,7 +3,7 @@ from pathlib import Path
 import subprocess
 from types import SimpleNamespace
 
-from dementia_margin.pipeline import build_plan, run
+from dementia_margin.pipeline import HCAP_LATER_WAVES, build_plan, run
 
 
 def configuration(tmp_path):
@@ -39,6 +39,13 @@ def test_plan_has_all_manuscript_steps_and_matching_paths(tmp_path):
         stability = next(s["command"] for s in steps if s["name"] == cohort + "_stability")
         assert "--respondent" in stability and "--tracker" in stability
         assert ("--summary" in stability) == (cohort == "hcap")
+    for wave in HCAP_LATER_WAVES:
+        later = geometries[f"hcap_wave{wave}"]
+        assert later["cohort"] == "hcap"
+        assert later["source_coordinates"] == geometries["hcap"]["source_coordinates"]
+        assert later["target_geometry"] == str(root / "hcap" / "mfa" / f"target_geometry_wave{wave}.csv")
+        assert later["output_dir"] == str(root / "hcap" / "interval" / f"wave{wave}" / "geometry")
+        assert names.index("hcap_mfa") < names.index(f"hcap_wave{wave}_geometry") < names.index(f"hcap_wave{wave}_clinical") < names.index("tables")
     assert names.index("share_hcap") < names.index("tables") < names.index("figures_2_4")
     assert names[-1] == "figure_5"
     assert not root.exists()

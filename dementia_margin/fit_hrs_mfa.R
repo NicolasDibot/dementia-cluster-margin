@@ -44,8 +44,10 @@ phase_target_only <- setdiff(
   phase_supplementary_levels[!is.na(phase_supplementary_levels)],
   phase_source_levels[!is.na(phase_source_levels)]
 )
-expected_phase_target_only <- if (mode == "hcap") character(0) else "6"
-if (!identical(phase_target_only, expected_phase_target_only)) {
+later_landmarks <- attr(input,"target_later_landmarks")
+if (is.null(later_landmarks)) later_landmarks <- integer(0)
+expected_phase_target_only <- if (mode == "hcap") as.character(later_landmarks) else "6"
+if (!identical(sort(phase_target_only), sort(expected_phase_target_only))) {
   stop("Target-only phase modality differs from the specified supplementary level")
 }
 model_input <- input[, model_columns, drop = FALSE]
@@ -214,28 +216,37 @@ write_keyed(source_coordinates,file.path(output_dir,"source_coordinates.csv"))
 write_keyed(supplementary_coordinates,file.path(output_dir,"target_coordinates.csv"))
 write_keyed(combined_fit$completed,file.path(output_dir,"completed_predictors.csv"))
 target_landmarks <- attr(input,"target_landmarks")
-if (!is.null(target_landmarks)) {
-  if (!is.data.frame(target_landmarks) ||
-      !identical(names(target_landmarks),c("key","landmark_wave")) ||
-      anyNA(target_landmarks) || anyDuplicated(target_landmarks$key)) {
-    stop("Invalid target landmark metadata")
-  }
-  landmark_keys <- paste(target_landmarks$key,target_landmarks$landmark_wave,sep="-")
-  target_landmarks <- target_landmarks[landmark_keys %in% rownames(input)[target_index],,drop=FALSE]
-  landmark_keys <- paste(target_landmarks$key,target_landmarks$landmark_wave,sep="-")
+write_landmark_table <- function(landmarks, file_name) {
+  landmark_keys <- paste(landmarks$key,landmarks$landmark_wave,sep="-")
+  landmarks <- landmarks[landmark_keys %in% rownames(input)[target_index],,drop=FALSE]
+  landmark_keys <- paste(landmarks$key,landmarks$landmark_wave,sep="-")
   matched <- match(landmark_keys,rownames(combined_fit$completed))
-  if (!nrow(target_landmarks) || anyNA(matched)) stop("No valid target landmarks")
+  if (!nrow(landmarks) || anyNA(matched)) stop("No valid target landmarks")
   target_completed <- combined_fit$completed[matched,,drop=FALSE]
   target_geometry <- data.frame(
-    key=target_landmarks$key,
-    landmark_wave=target_landmarks$landmark_wave,
+    key=landmarks$key,
+    landmark_wave=landmarks$landmark_wave,
     age_years=completed_numeric(target_completed$newage,"newage"),
     female=as.integer(completed_numeric(target_completed$ragender,"ragender")==2),
     education_level=as.integer(completed_numeric(target_completed$raeducl,"raeducl"))
   )
   if (anyNA(target_geometry) || any(target_geometry$age_years<50 | target_geometry$age_years>120) ||
       any(!(target_geometry$education_level %in% 1:3))) stop("Invalid landmark covariates")
-  write.csv(target_geometry,file.path(output_dir,"target_geometry.csv"),row.names=FALSE)
+  write.csv(target_geometry,file.path(output_dir,file_name),row.names=FALSE)
+}
+if (!is.null(target_landmarks)) {
+  if (!is.data.frame(target_landmarks) ||
+      !identical(names(target_landmarks),c("key","landmark_wave")) ||
+      anyNA(target_landmarks) || anyDuplicated(target_landmarks$key)) {
+    stop("Invalid target landmark metadata")
+  }
+  write_landmark_table(target_landmarks,"target_geometry.csv")
+  # Same participants scored at each later landmark wave, when interviewed.
+  for (wave in later_landmarks) {
+    later <- target_landmarks
+    later$landmark_wave <- as.integer(wave)
+    write_landmark_table(later,sprintf("target_geometry_wave%d.csv",wave))
+  }
 }
 saveRDS(combined_fit$mfa,file.path(output_dir,"mfa.rds"),compress="xz")
 saveRDS(combined_fit$imputation,file.path(output_dir,"imputation.rds"),compress="xz")

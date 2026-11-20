@@ -71,6 +71,59 @@ saveRDS(x,INPUT)
         np.testing.assert_array_equal(metadata.education_level, selected.raeducl)
 
 
+def test_hcap_later_landmark_tables(tmp_path, monkeypatch):
+    rscript = shutil.which("Rscript")
+    if rscript is None:
+        pytest.skip("Rscript is not installed")
+    available = subprocess.run([rscript, "-e", 'quit(status=ifelse(requireNamespace("FactoMineR",quietly=TRUE)&&requireNamespace("missMDA",quietly=TRUE),0,1))'], capture_output=True)
+    if available.returncode:
+        pytest.skip("FactoMineR and missMDA are not installed")
+    monkeypatch.setenv("COHORT_DATA_ACCESS", "authorised")
+    input_path = tmp_path / "input.rds"
+    output = tmp_path / "output"
+    code = r'''
+set.seed(71)
+functional <- c("hlthlma","walkra","dressa","batha","eata","beda","toilta",
+ "phonea","medsa","moneya","shopa","mealsa","mapa","housewka","walk100a",
+ "sita","chaira","climsa","clim1a","lifta","stoopa","armsa","pusha","dimea")
+# 200 source rows at Waves 8-10; ten target participants observed at Waves 10
+# and 13, the first five of them also at Waves 11 and 12.
+target_key <- c(rep(201:210,2),rep(201:205,2))
+target_wave <- c(rep(10,10),rep(13,10),rep(11,5),rep(12,5))
+wave <- c(rep(c(8,9,10),length.out=200),target_wave)
+n <- length(wave)
+x <- data.frame(phase=factor(wave,levels=8:13),
+ ragender=factor(sample(1:2,n,TRUE)),newage=runif(n,50,90),raeducl=factor(sample(1:3,n,TRUE)))
+for (name in functional) x[[name]] <- factor(sample(0:1,n,TRUE))
+x$adltot_s <- runif(n,0,5)
+x$iadltot1_s <- runif(n,0,5)
+x$cogothp <- factor(sample(0:1,n,TRUE))
+x$imrc <- runif(n,0,10)
+x$dlrc <- runif(n,0,10)
+x$tr20 <- x$imrc+x$dlrc
+rownames(x) <- paste0(c(seq_len(200),target_key),"-",wave)
+attr(x,"row_role") <- c(rep("source",200),rep("target",length(target_key)))
+attr(x,"analysis_mode") <- "hcap"
+attr(x,"target_landmarks") <- data.frame(key=as.character(201:210),landmark_wave=10L)
+attr(x,"target_later_landmarks") <- 11:13
+x$imrc[c(2,8,15,205)] <- NA_real_
+saveRDS(x,INPUT)
+'''.replace("INPUT", json.dumps(str(input_path)))
+    subprocess.run([rscript, "-e", code], check=True, capture_output=True, text=True)
+    script = Path(__file__).resolve().parents[1] / "dementia_margin" / "fit_hrs_mfa.R"
+    result = subprocess.run([rscript, str(script), str(input_path), str(output)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert len(pd.read_csv(output / "source_coordinates.csv")) == 200
+    coordinates = pd.read_csv(output / "target_coordinates.csv")
+    assert len(coordinates) == 30
+    expected = {"target_geometry.csv": (10, 10), "target_geometry_wave11.csv": (11, 5),
+                "target_geometry_wave12.csv": (12, 5), "target_geometry_wave13.csv": (13, 10)}
+    for name, (wave, count) in expected.items():
+        table = pd.read_csv(output / name)
+        assert len(table) == count and table.landmark_wave.eq(wave).all()
+        assert set(table.key.astype(str) + f"-{wave}") <= set(coordinates.person_wave_key)
+
+
 @pytest.mark.parametrize("via_symlink", [False, True])
 def test_r_rejects_repository_output(tmp_path, monkeypatch, via_symlink):
     rscript = shutil.which("Rscript")

@@ -55,7 +55,7 @@ mode <- COHORT
 target_n <- if(mode=="adams") 1770L else 3496L
 keys <- c(1:400,10001:(10000+target_n))
 n <- length(keys)
-waves <- if(mode=="adams") 3:6 else 8:10
+waves <- if(mode=="adams") 3:6 else 8:13
 source_waves <- waves[1:3]
 wide <- data.frame(hhidpn=keys,ragender=rep(1:2,length.out=n),raeduc=rep(1:5,length.out=n))
 harm <- data.frame(hhidpn=keys)
@@ -109,12 +109,14 @@ stopifnot(ncol(x)==34L,sum(role=="source")==1196L,
  !any(key[role=="source"] %in% key[role=="target"]),
  !("1" %in% key),"10001" %in% key,
  !any(as.character(10002:10006) %in% key),
- all(role %in% c("source","target")),
- !any(as.character(x$phase)=="13"))
+ all(role %in% c("source","target")))
 selection <- attr(x,"target_landmarks")
+later <- attr(x,"target_later_landmarks")
 if(attr(x,"analysis_mode")=="adams") {
- stopifnot(!any(as.character(x$phase[key=="10001"])=="6"))
-} else stopifnot(all(selection$landmark_wave==10L))
+ stopifnot(!any(as.character(x$phase[key=="10001"])=="6"),length(later)==0L)
+} else stopifnot(all(selection$landmark_wave==10L),identical(later,11:13),
+ all(as.character(x$phase[role=="source"]) %in% c("8","9","10")),
+ all(c("10","11","12","13") %in% as.character(x$phase[role=="target"])))
 stopifnot(sum(key=="2")==2L)
 '''.replace("INPUT", json.dumps(str(output / "prepared_predictors.rds")))
     result = subprocess.run([rscript, "-e", check], capture_output=True, text=True)

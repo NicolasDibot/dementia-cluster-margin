@@ -2,7 +2,9 @@ import json
 
 import pandas as pd
 
-from dementia_margin.manuscript_tables import CLINICAL_ROWS, clinical_tables, profile_table, stability_table
+from dementia_margin.manuscript_tables import (
+    CLINICAL_ROWS, INTERVAL_ROWS, clinical_tables, interval_table, profile_table, stability_table,
+)
 from dementia_margin.variables import variable_dictionary
 
 
@@ -29,6 +31,30 @@ def test_tables_preserve_estimates_counts_and_diagnostic_denominators(tmp_path):
     assert numeric.loc[numeric.estimand.eq("auc::label"), "estimate"].eq(.612345).all()
     assert numeric.loc[numeric.estimand.eq("or::margin"), "estimate"].eq(1.5).all()
     assert len(models) == 4
+
+
+def test_interval_table_reports_each_wave_with_rounded_counts(tmp_path):
+    directories = {}
+    for wave, inside in ((10, 15.34), (13, 44.16)):
+        folder = tmp_path / f"wave{wave}"
+        folder.mkdir()
+        directories[wave] = folder
+        pd.DataFrame({"diagnostic_level": [0, 1, 2], "percentage_outside": [97., 90., 100 - inside],
+                      "percentage_inside": [3., 10., inside]}).to_csv(folder / "diagnosis_distribution.csv", index=False)
+        values = {"auc::label": .55, "auc::margin": .71, "contrast::margin_minus_label": .16,
+                  "contribution::two_cluster::H0": .12, "auc::cognition_only": .74, "auc::function_only": .63}
+        pd.DataFrame([{"cohort": "hcap", "estimand": name, "estimate": value,
+                       "ci95_low": value - .02, "ci95_high": value + .02}
+                      for name, value in values.items()]).to_csv(folder / "clinical_estimands.csv", index=False)
+        (folder / "analysis_metadata.json").write_text(json.dumps({"participants": 3402, "dementia": 368}))
+    table = interval_table(directories)
+    assert table.columns.tolist() == ["Measure", "2010 (6 years before)", "2016 (same year)"]
+    assert table.Measure.tolist() == list(INTERVAL_ROWS)
+    column = table.set_index("Measure")["2016 (same year)"]
+    assert column["Participants (dementia)"] == "≈3,400 (≈360)"
+    assert column["Dementia cases inside the dementia-like cluster, %"] == "44.2"
+    assert column["AUC, margin"] == "0.710 (0.690–0.730)"
+    assert column["Share of the difference from outside the cluster, %"] == "75.0"
 
 
 def test_figure_tables_preserve_orientation_and_stability(tmp_path):

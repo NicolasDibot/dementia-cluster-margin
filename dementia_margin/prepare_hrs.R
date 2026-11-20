@@ -21,7 +21,10 @@ external_input <- function(path) {
 harmonized_path <- external_input(args[3L])
 selection_path <- external_input(args[4L])
 source_waves <- if (mode=="hcap") 8:10 else 3:5
-target_waves <- if (mode=="hcap") 8:10 else 3:6
+# HCAP participants are also kept at Waves 11-13 (2012-2016) for the analysis
+# by interval between the HRS interview and the 2016 assessment.
+later_landmarks <- if (mode=="hcap") 11:13 else integer(0)
+target_waves <- if (mode=="hcap") c(8:10,later_landmarks) else 3:6
 read_waves <- sort(unique(c(source_waves,target_waves)))
 
 functional_binary <- c(
@@ -239,7 +242,8 @@ if (any(source_missingness >= 0.30)) {
 }
 
 # ADAMS uses each participant's WAVESEL landmark (Wave 5 or 6).
-# HCAP uses Waves 8-10 with Wave 10 as the primary landmark.
+# HCAP uses Waves 8-10 with Wave 10 as the primary landmark; participants
+# observed at a later landmark (Waves 11-13) are retained as targets as well.
 target_raw <- long[
   long$key %in% target_keys & long$phase %in% target_waves & interviewed,
   ,drop=FALSE
@@ -250,7 +254,8 @@ if (mode=="adams") {
 }
 target_raw$feature_gate <- row_feature_gate(target_raw)
 eligible_target_keys <- unique(target_raw$key[
-  target_raw$phase==target_raw$landmark_wave & target_raw$feature_gate
+  (target_raw$phase==target_raw$landmark_wave |
+     target_raw$phase %in% later_landmarks) & target_raw$feature_gate
 ])
 target <- target_raw[
   target_raw$key %in% eligible_target_keys & target_raw$feature_gate,,drop=FALSE
@@ -285,6 +290,7 @@ attr(result, "analysis_mode") <- mode
 attr(result, "source_waves") <- source_waves
 attr(result, "target_primary_wave") <- if (mode == "hcap") 10L else NA_integer_
 attr(result,"target_landmarks") <- selection[,c("key","landmark_wave"),drop=FALSE]
+attr(result,"target_later_landmarks") <- later_landmarks
 attr(result,"source_item_missingness") <- source_missingness
 attr(result,"recall_consistency_by_wave") <- recall_consistency_by_wave
 saveRDS(result,file.path(output_dir,"prepared_predictors.rds"),compress="xz")
